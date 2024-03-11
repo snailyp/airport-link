@@ -1,5 +1,5 @@
-import imaplib
 import email
+import imaplib
 import re
 
 
@@ -47,8 +47,3 @@ def get_verification_code(mail, folder):
                         get_verification_code(mail, folder)
 
     return None
-
-
-# mail = login('msstorespk1@outlook.com','1M$stores!')
-# verify_code = get_verification_code(mail,'Junk')
-# print(verify_code)

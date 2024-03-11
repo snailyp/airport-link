@@ -16,7 +16,7 @@ CONFIG_PATH = os.path.join('', 'config.json')
 def get_random_string(length=10, use_password_chars=False):
     chars = string.ascii_letters + string.digits
     if use_password_chars:
-        chars += "!@#$%^&*()_+<>?/.,;'{}[]\\|~`"
+        chars += "!@#$%^&"
     return ''.join(random.choice(chars) for _ in range(length))
 
 
@@ -26,7 +26,7 @@ async def type_and_click_next(page, selector, text):
     await page.keyboard.press('Enter')
 
 
-async def main():
+async def create_outlook():
     if not os.path.exists(EXTENSION_PATH):
         print("扩展必须下载并放置在同一文件夹中。检查GitHub上的说明。")
         return
@@ -40,9 +40,12 @@ async def main():
         with open(CONFIG_PATH, 'w') as f:
             json.dump(config_json, f)
 
-    browser = await launch(headless=False, executablePath="C:\Program Files\Google\Chrome\Application\chrome.exe")
+    browser = await launch(headless=False, executablePath=config_json['executablePath'],
+                           args=[f'--proxy-server={config_json["proxy"]}'])
     page = await browser.newPage()
     await page.goto('https://signup.live.com/signup')
+    await page.waitForSelector("#iSignupAction")
+    await page.click("#iSignupAction")
 
     email = f"F{get_random_string()}@outlook.com"
     password = get_random_string(20, True)
@@ -57,7 +60,7 @@ async def main():
     await page.keyboard.press('Enter')
     await page.keyboard.press('ArrowDown')
 
-    await asyncio.sleep(0.5)  # 替代C#中的Thread.Sleep
+    await asyncio.sleep(0.5)
 
     await page.waitForSelector("#BirthDay")
     await page.click("#BirthDay")
@@ -70,12 +73,13 @@ async def main():
 
     with open("outlook_accounts.txt", "a") as file:
         file.write(f"{email}:{password}\n")
+
     okButton = "#id__0"
-    await page.waitForSelector(okButton)
+    await page.waitForSelector(okButton, timeout=6000000)
     await page.click(okButton)
-    await page.keyboard.press('Enter')
+    await asyncio.sleep(20)
     await page.close()
     await browser.close()
 
 
-asyncio.run(main())
+asyncio.run(create_outlook())
