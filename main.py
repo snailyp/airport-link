@@ -134,13 +134,12 @@ def register(origin, email_user, verify_code, password):
     url = origin + REGISTER_SUFFIX_URI
     try:
         response = send_post_json_request(url, data, header)
-        obj = {}
         if response.status_code == 200:
             obj = json.loads(response.text)
             logger.info(f"{email_user}注册成功!")
             return obj['data']['auth_data']
         else:
-            logger.error(f"{email_user}注册失败:{obj['message']}")
+            logger.error(f"{email_user}注册失败:{response.json()['message']}")
             return None
     except Exception as e:
         logger.error(f"{email_user}注册错误:{e}")
@@ -278,7 +277,7 @@ def main():
         websites = read_websites(WEBSITES_FILE_PATH)
         for origin, email_verify, coupon_code in websites:
             # 登录判断是否已经注册
-            login_res = login(origin, email_user, email_pass)
+            login_res = login(origin, email_user, email_pass[:16])
             auth_data = None
             if login_res is not None:
                 logger.info(f"{email_user}已经在{origin}注册！")
@@ -290,14 +289,12 @@ def main():
                     # 有邮箱验证，则发送验证码到邮箱
                     if send_email_verify(origin, email_user):
                         logger.info(f"向邮箱{email_user}发送验证成功！")
-                        # 从邮箱获取验证码,10s等待邮箱到来
-                        time.sleep(10)
                         verification_code = outlook.get_verification_code(mail, "Junk")
                         logger.info(f"Verification code for {email_user} is {verification_code}")
                     else:
                         continue
                 # 注册账号，获得授权码
-                auth_data = register(origin, email_user, verification_code, email_pass)
+                auth_data = register(origin, email_user, verification_code, email_pass[:16])
                 if auth_data is None:
                     continue
 
@@ -328,7 +325,7 @@ def main():
                 pass
             # 获取订阅地址
             subscribe_url = get_subscribe(origin, email_user, auth_data)
-            airport_link_info = f"账号：{email_user}" + f"\n密码：{email_pass}" + f"\n订阅地址：{subscribe_url}\n"
+            airport_link_info = f"账号：{email_user}" + f"\n密码：{email_pass[:16]}" + f"\n订阅地址：{subscribe_url}\n"
             logger.info("\n" + airport_link_info)
             with open("airport_link_info.txt", "a",encoding="utf-8") as file:
                 file.write(airport_link_info)
