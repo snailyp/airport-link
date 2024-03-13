@@ -1,6 +1,6 @@
 import json
 import logging
-import time
+import os
 
 import requests
 
@@ -29,6 +29,19 @@ CHECK_OUT_SUFFIX_URI = "/api/v1/user/order/checkout"
 # 获取订阅地址uri
 GET_SUBSCRIBE_URI = "/api/v1/user/getSubscribe"
 
+# 配置文件路径
+CONFIG_PATH = os.path.join('', 'config.json')
+
+response = None
+auth_data = None
+mail = None
+
+
+# 读取配置文件
+with open(CONFIG_PATH, 'r') as f:
+    config_json = json.load(f)
+    proxy = config_json['proxy']
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('myLogger')
 console_handler = logging.StreamHandler()
@@ -39,16 +52,20 @@ console_handler.setFormatter(fmt=logging.Formatter(fmt=console_fmt))
 
 # 发送post请求
 def send_post_request(url, data, headers=None):
-    response = requests.post(url, data=json.dumps(data), headers=headers)
+    global response
+    response = requests.post(url, data=json.dumps(data), headers=headers, proxies={"http": proxy, "https": proxy})
     return response
 
 
 def send_post_json_request(url, data, headers=None):
-    response = requests.post(url, data=data, headers=headers)
+    global response
+    response = requests.post(url, data=data, headers=headers, proxies={"http": proxy, "https": proxy})
     return response
+
 
 # 发送get请求
 def send_get_request(url, headers=None):
+    global response
     response = requests.get(url, headers=headers)
     return response
 
@@ -79,6 +96,7 @@ def read_websites(filename):
 
 # 登录
 def login(origin, email_user, email_pass):
+    global response
     header = HEADERS
     header['Accept'] = "application/json, text/plain, */*"
     header['Content-Type'] = "application/json"
@@ -92,12 +110,9 @@ def login(origin, email_user, email_pass):
     try:
         response = send_post_request(url, data, header)
         data = json.loads(response.text)['data']
-        if data is None:
-            logger.error(f"{email_user}登录失败，错误信息：{response.json()['message']}")
-            return None
         return data
     except Exception as e:
-        logger.error(f"{email_user}登录失败，错误:{e}")
+        logger.error(f"{email_user}登录失败，错误:{e},返回信息：{response.text}")
         return None
 
 
@@ -111,12 +126,13 @@ def send_email_verify(origin, email_user):
         'email': email_user
     }
     url = origin + SEND_EMAIL_SUFFIX_URI
+    global response
     try:
         response = send_post_json_request(url, data, header)
         data = json.loads(response.text)['data']
         return data
     except Exception as e:
-        logger.error(f"{email_user}发送验证码错误:{e}")
+        logger.error(f"{email_user}发送验证码错误:{e},返回信息：{response.text}")
         return False
 
 
@@ -132,6 +148,7 @@ def register(origin, email_user, verify_code, password):
     }
 
     url = origin + REGISTER_SUFFIX_URI
+    global response
     try:
         response = send_post_json_request(url, data, header)
         if response.status_code == 200:
@@ -142,7 +159,7 @@ def register(origin, email_user, verify_code, password):
             logger.error(f"{email_user}注册失败:{response.json()['message']}")
             return None
     except Exception as e:
-        logger.error(f"{email_user}注册错误:{e}")
+        logger.error(f"{email_user}注册错误:{e},返回信息：{response.text}")
         return None
 
 
@@ -153,13 +170,14 @@ def fetch_plan(origin, email_user, auth_data):
     header['Accept'] = "application/json"
     header['Authorization'] = auth_data
     url = origin + PLAN_FETCH_SUFFIX_URI
+    global response
     try:
         response = send_get_request(url, header)
         obj = json.loads(response.text)
         logger.info(f"{email_user}获取套餐成功！")
         return obj['data'][0]['id']
     except Exception as e:
-        logger.error(f"{email_user}获取套餐错误:{e}")
+        logger.error(f"{email_user}获取套餐错误:{e},返回信息：{response.text}")
         return None
 
 
@@ -174,13 +192,14 @@ def check_coupon(origin, email_user, auth_data, coupon_code, plan_id):
         "plan_id": plan_id
     }
     url = origin + CHECK_COUPON_SUFFIX_URI
+    global response
     try:
         response = send_post_request(url, data, header)
         obj = json.loads(response.text)
         logger.info(f"{email_user}校验优惠码成功！")
         return obj
     except Exception as e:
-        logger.error(f"{email_user}校验优惠码错误:{e}")
+        logger.error(f"{email_user}校验优惠码错误:{e},返回信息：{response.text}")
         return None
 
 
@@ -195,6 +214,7 @@ def order(origin, email_user, auth_data, coupon_code, plan_id):
         "plan_id": plan_id,
     }
     url = origin + ORDER_SUFFIX_URI
+    global response
     try:
         response = send_post_request(url, data, header)
         if response.status_code == 200:
@@ -205,7 +225,7 @@ def order(origin, email_user, auth_data, coupon_code, plan_id):
             logger.error(f"{email_user}下单失败:{response.json()['message']}")
             return None
     except Exception as e:
-        logger.error(f"{email_user}下单错误:{e}")
+        logger.error(f"{email_user}下单错误:{e},返回信息：{response.text}")
         return None
 
 
@@ -215,13 +235,14 @@ def get_payment_method(origin, email_user, auth_data):
     header['Accept'] = "application/json, text/plain, */*"
     header['Authorization'] = auth_data
     url = origin + PAYMENT_METHOD_URI
+    global response
     try:
         response = send_get_request(url, header)
         obj = json.loads(response.text)
         logger.info(f"{email_user}获取支付方式成功！")
         return obj['data'][0]['id']
     except Exception as e:
-        logger.error(f"{email_user}获取支付方式错误:{e}")
+        logger.error(f"{email_user}获取支付方式错误:{e},返回信息：{response.text}")
         return None
 
 
@@ -235,13 +256,14 @@ def check_out(origin, email_user, auth_data, trade_no, payment_method):
         "trade_no": trade_no,
         "method": payment_method
     }
+    global response
     try:
         response = send_post_request(url, data, header)
         obj = json.loads(response.text)
         logger.info(f"{email_user}结账成功！")
         return obj
     except Exception as e:
-        logger.error(f"{email_user}结账错误:{e}")
+        logger.error(f"{email_user}结账错误:{e},返回信息：{response.text}")
         return None
 
 
@@ -251,20 +273,21 @@ def get_subscribe(origin, email_user, auth_data):
     header['Accept'] = "application/json, text/plain, */*"
     header['Authorization'] = auth_data
     url = origin + GET_SUBSCRIBE_URI
+    global response
     try:
         response = send_get_request(url, header)
-        subscibe_url = json.loads(response.text)['data']['subscribe_url']
+        subscribe_url = json.loads(response.text)['data']['subscribe_url']
         logger.info("获取订阅成功！")
-        return subscibe_url
+        return subscribe_url
     except Exception as e:
-        logger.error(f"{email_user}获取订阅url错误:{e}")
+        logger.error(f"{email_user}获取订阅url错误:{e},返回信息：{response.text}")
         return None
 
 
 def main():
     # 读取txt文件中的邮箱信息
     credentials = read_credentials(ACCOUNTS_FILE_PATH)
-    mail = None
+    global mail
     for email_user, email_pass in credentials:
         try:
             mail = outlook.login(email_user, email_pass)
@@ -278,18 +301,21 @@ def main():
         for origin, email_verify, coupon_code in websites:
             # 登录判断是否已经注册
             login_res = login(origin, email_user, email_pass[:16])
-            auth_data = None
+            global auth_data
             if login_res is not None:
                 logger.info(f"{email_user}已经在{origin}注册！")
                 auth_data = login_res['auth_data']
             else:
                 logger.info(f"{email_user}未在{origin}注册！")
-                verification_code = ''
+                verification_code = None
                 if email_verify == 't':
                     # 有邮箱验证，则发送验证码到邮箱
                     if send_email_verify(origin, email_user):
-                        logger.info(f"向邮箱{email_user}发送验证成功！")
-                        verification_code = outlook.get_verification_code(mail, "Junk")
+                        logger.info(f"已向邮箱{email_user}发送验证码！")
+                        verification_code = outlook.get_verification_code(mail)
+                        if verification_code is None:
+                            logger.error(f"获取邮箱{email_user}验证码失败！")
+                            continue
                         logger.info(f"Verification code for {email_user} is {verification_code}")
                     else:
                         continue
@@ -327,7 +353,7 @@ def main():
             subscribe_url = get_subscribe(origin, email_user, auth_data)
             airport_link_info = f"账号：{email_user}" + f"\n密码：{email_pass[:16]}" + f"\n订阅地址：{subscribe_url}\n"
             logger.info("\n" + airport_link_info)
-            with open("airport_link_info.txt", "a",encoding="utf-8") as file:
+            with open("airport_link_info.txt", "a", encoding="utf-8") as file:
                 file.write(airport_link_info)
         # 邮箱退出登录
         mail.logout()

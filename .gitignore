@@ -1,1 +1,3 @@
 /.venv/
+!/outlook_accounts.txt
+!/airport_link_info.txt
