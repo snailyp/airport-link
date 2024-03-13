@@ -28,14 +28,22 @@ ORDER_SUFFIX_URI = "/api/v1/user/order/save"
 CHECK_OUT_SUFFIX_URI = "/api/v1/user/order/checkout"
 # 获取订阅地址uri
 GET_SUBSCRIBE_URI = "/api/v1/user/getSubscribe"
+# 生成邀请码uri
+INVITE_SAVE_URI = "/api/v1/user/invite/save"
+# 获取邀请码uri
+INVITE_FETCh_URI = "/api/v1/user/invite/fetch"
 
 # 配置文件路径
 CONFIG_PATH = os.path.join('', 'config.json')
 
+# 全局变量
 response = None
+# 授权码
 auth_data = None
+# 邮箱
 mail = None
-
+# 邀请码dict
+invite_codes = {}
 
 # 读取配置文件
 with open(CONFIG_PATH, 'r') as f:
@@ -137,7 +145,7 @@ def send_email_verify(origin, email_user):
 
 
 # 注册机场账号
-def register(origin, email_user, verify_code, password):
+def register(origin, email_user, verify_code, password, invite_code=None):
     header = HEADERS
     header['Content-Type'] = "application/x-www-form-urlencoded"
     header['Accept'] = "application/json, text/plain, */*"
@@ -150,6 +158,9 @@ def register(origin, email_user, verify_code, password):
     url = origin + REGISTER_SUFFIX_URI
     global response
     try:
+        if invite_code is not None and invite_code != '':
+            data['invite_code'] = invite_code
+            logger.info(f"{email_user}使用邀请码{invite_code}注册！")
         response = send_post_json_request(url, data, header)
         if response.status_code == 200:
             obj = json.loads(response.text)
@@ -284,10 +295,48 @@ def get_subscribe(origin, email_user, auth_data):
         return None
 
 
+# 生成邀请码
+def invite_save(origin, email_user, auth_data):
+    header = HEADERS
+    header['Accept'] = "application/json, text/plain, */*"
+    header['Authorization'] = auth_data
+    url = origin + INVITE_SAVE_URI
+    global response
+    try:
+        response = send_get_request(url, header)
+        obj = json.loads(response.text)
+        if obj['data']:
+            logger.info(f"{email_user}生成邀请码成功！")
+            return True
+        return False
+    except Exception as e:
+        logger.error(f"{email_user}生成邀请码错误:{e},返回信息：{response.text}")
+        return False
+
+
+# 获取邀请码
+def invite_fetch(origin, email_user, auth_data):
+    header = HEADERS
+    header['Accept'] = "application/json, text/plain, */*"
+    header['Authorization'] = auth_data
+    url = origin + INVITE_FETCh_URI
+    global response
+    try:
+        response = send_get_request(url, header)
+        obj = json.loads(response.text)
+        invite_code = obj['data']['codes'][0]['code']
+        logger.info(f"{email_user}获取邀请码成功！")
+        return invite_code
+    except Exception as e:
+        logger.error(f"{email_user}获取邀请码错误:{e},返回信息：{response.text}")
+        return None
+
+
 def main():
     # 读取txt文件中的邮箱信息
     credentials = read_credentials(ACCOUNTS_FILE_PATH)
     global mail
+    num = 1  # 用于是否打印邀请码，只有第一个邮箱打印邀请码
     for email_user, email_pass in credentials:
         try:
             mail = outlook.login(email_user, email_pass)
@@ -296,8 +345,9 @@ def main():
             logger.error(f"\n邮箱：{email_user}\n" +
                          f"登录异常:{e}")
             continue
-
+        global invite_codes
         websites = read_websites(WEBSITES_FILE_PATH)
+        # 遍历机场
         for origin, email_verify, coupon_code in websites:
             # 登录判断是否已经注册
             login_res = login(origin, email_user, email_pass[:16])
@@ -320,7 +370,7 @@ def main():
                     else:
                         continue
                 # 注册账号，获得授权码
-                auth_data = register(origin, email_user, verification_code, email_pass[:16])
+                auth_data = register(origin, email_user, verification_code, email_pass[:16], invite_codes.get(origin))
                 if auth_data is None:
                     continue
 
@@ -347,15 +397,29 @@ def main():
                 check_out_res = check_out(origin, email_user, auth_data, trade_no, payment_method)
                 if check_out_res is None:
                     continue
-            else:
-                pass
+            # 只给一个邮箱生成邀请码,其余的使用这个邀请码注册
+            if invite_codes.get(origin) is None:
+                # 生成邀请码
+                if invite_save(origin, email_user, auth_data):
+                    # 获取邀请码
+                    invite_code = invite_fetch(origin, email_user, auth_data)
+                    if invite_code is not None:
+                        invite_codes[origin] = invite_code
             # 获取订阅地址
             subscribe_url = get_subscribe(origin, email_user, auth_data)
-            airport_link_info = f"账号：{email_user}" + f"\n密码：{email_pass[:16]}" + f"\n订阅地址：{subscribe_url}\n"
+
+            if num == 1:
+                airport_link_info = (
+                            f"账号：{email_user}" + f"\n密码：{email_pass[:16]}" + f"\n订阅地址：{subscribe_url}\n" +
+                            f"邀请码：{invite_codes.get(origin)}\n")
+            else:
+                airport_link_info = (
+                            f"账号：{email_user}" + f"\n密码：{email_pass[:16]}" + f"\n订阅地址：{subscribe_url}\n")
             logger.info("\n" + airport_link_info)
             with open("airport_link_info.txt", "a", encoding="utf-8") as file:
                 file.write(airport_link_info)
         # 邮箱退出登录
+        num += 1
         mail.logout()
 
 
