@@ -115,7 +115,7 @@ pip install -r requirements.txt
 python .\outlook_account.py
 ```
 执行命令后，会自动的弹出浏览器，然后自动填充必要信息，到了图形验证的时候，需要手动的通过一下验证，接着会跳出下面这个页面，需手动点击一下确定，就生成好了一个outlook邮箱，生成好的邮箱会保存在outlook_accounts.txt中
-![Snipaste_2024-03-11_22-22-21.png](pic%2FSnipaste_2024-03-11_22-22-21.png)![Snipaste_2024-03-11_22-22-21|665x499](.\pic.png)
+![Snipaste_2024-03-11_22-22-21.png](pic%2FSnipaste_2024-03-11_22-22-21.png)
 
 #### 3.3 生成机场链接
 首先，cd到项目根目录，然后执行命令
