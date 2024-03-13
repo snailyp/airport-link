@@ -85,11 +85,13 @@ FxDMRpQJ6ak@outlook.com:3J4uiDUXKcahMFW8BLmr
 ```
 **注意**：`目前项目仅支持outlook邮箱，没有outlook邮箱也没关系，先不填，项目包含了自动生成outlook邮箱，并保存在该文件下，后面介绍具体怎么生成`。
 
-#### 2.3 (可选)配置config.json
+#### 2.3 配置config.json
 **如果需要生成outlook邮箱，需要修改该配置。**
 需要修改以下两个配置：
 * executablePath为chrome浏览器的可执行文件地址
 * proxy为代理地址，代理选ip干净一点的，不然后面图形验证会比较麻烦
+
+**如果需要机场地址需要代理访问，也需要配置proxy**
 ```
 "executablePath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
 "proxy": "http://127.0.0.1:7892",
@@ -113,7 +115,7 @@ pip install -r requirements.txt
 python .\outlook_account.py
 ```
 执行命令后，会自动的弹出浏览器，然后自动填充必要信息，到了图形验证的时候，需要手动的通过一下验证，接着会跳出下面这个页面，需手动点击一下确定，就生成好了一个outlook邮箱，生成好的邮箱会保存在outlook_accounts.txt中
-![Snipaste_2024-03-11_22-22-21|665x499](upload://55Bhoopf3kdND0q8nMzjEx95QvZ.png)
+![Snipaste_2024-03-11_22-22-21.png](pic%2FSnipaste_2024-03-11_22-22-21.png)![Snipaste_2024-03-11_22-22-21|665x499](.\pic.png)
 
 #### 3.3 生成机场链接
 首先，cd到项目根目录，然后执行命令
