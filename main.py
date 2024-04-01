@@ -74,7 +74,7 @@ def send_post_json_request(url, data, headers=None):
 # 发送get请求
 def send_get_request(url, headers=None):
     global response
-    response = requests.get(url, headers=headers)
+    response = requests.get(url, headers=headers, proxies={"http": proxy, "https": proxy})
     return response
 
 
